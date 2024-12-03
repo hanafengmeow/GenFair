@@ -4,7 +4,6 @@ import google.generativeai as genai
 import os
 import json
 import re
-from .constant import API_KEY
 from .constant import MODEL
 
 from google.api_core.exceptions import ResourceExhausted
@@ -12,7 +11,6 @@ from collections import defaultdict
 
 class Generator:
     def __init__(self, json_path: str):
-        genai.configure(api_key=API_KEY)
         self.json_object = json.load(open(json_path))
         self.model = genai.GenerativeModel(MODEL)
 
@@ -56,7 +54,7 @@ class Generator:
     def from_dictionary_to_str(data, level: int=0, result=None) -> str:
         return ''.join(Generator.recur_retrieve_strs_from_dictionary(data, level, result))
 
-    def get_criteria(self) -> [str]:
+    def get_criteria(self) -> list[str]:
         res = []
         start = 'evaluation criteria: \n'
         for pre_question in self.json_object:
