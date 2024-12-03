@@ -1,13 +1,21 @@
 import streamlit as st
 from streamlit_elements import elements, mui, html
 
-add_selectbox = st.sidebar.selectbox(
+model_selectbox = st.sidebar.selectbox(
     'Please select a model to evaluate:',
     (
         'meta-llama/Llama-3.2-1B-Instruct',
         'google/gemma-2-2b-it',
         'mistralai/Mixtral-8x7B-Instruct-v0.1'
     )
+)
+
+n_questions = st.sidebar.slider(
+    label="Number of questions per dimension:",
+    min_value=1,
+    max_value=20,
+    value=5,
+    step=1
 )
 
 evaluate_button = st.sidebar.button('Evaluate!')
