@@ -1,12 +1,16 @@
-import streamlit as st
 import asyncio
+from textwrap import dedent
 from typing import get_args
 from collections import defaultdict
+
+import streamlit as st
 
 from genfair import QuestionLoader
 from genfair.llms import *
 from genfair.md_helper import get_section
-from genfair.streamlit_helper import metrics_radar_chart
+from genfair.st_elements import metrics_radar_chart
+from genfair.streamlit_helper import jump_to_tab
+
 
 QUESTION_TYPES = get_args(QuestionLoader.QuestionType.__value__)
 
@@ -16,20 +20,20 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("GenFair: Gender Fairness Matters!")
+st.title("GenFair: GENerative/GENder FAIRness Matters!")
 with st.sidebar:
     model_type = st.selectbox(
-        'Please select a model type:',
-        list(LLMMeta.registry)
+        'Please select a model type:', model_type_list := list(LLMMeta.registry),
     )
     llm_cls = LLMMeta.registry[model_type]
     model_name = st.selectbox(
-        'Please select a model name to evaluate:',
-        llm_cls.get_model_names()
+        'Please select a model name to evaluate:', model_name_list := llm_cls.get_model_names()
     )
     api_key = st.text_input(
-        'Please provide api key:',
+        f'Enter {model_type} API key:',
+        type='password',
     )
+    api_key_error = st.empty()
     n_questions = st.slider(
         label="Number of questions per dimension:",
         min_value=1,
@@ -46,13 +50,24 @@ with st.sidebar:
 
 if 'questions' not in st.session_state:
     st.session_state.questions = defaultdict(list)
+            
+introduction, questionnaire, report, instructions = (tabs := st.tabs([
+    "Introduction",
+    "Questionnaire",
+    "Evaluation Report",
+    "API Key Instructions",
+]))
+
 if questionnaire_button:
+    jump_to_tab(tabs.index(questionnaire))
     loader = QuestionLoader()
     for question_type in QUESTION_TYPES:
         st.session_state.questions[question_type] = loader.load_question_pairs(question_type, n=n_questions)
-            
-questionnaire, report, how_it_works = st.tabs(["Questionnaire", "Evaluation Report", "How It Works?"])
-
+    
+with introduction:
+    st.title("How it works?")
+    st.video("https://youtu.be/99D4eS2F-p4")
+    
 with questionnaire:
     
     response_placesholders = defaultdict(list)
@@ -137,8 +152,12 @@ with report:
     - The approach would be consistent across similar ambiguous contexts, showing no bias in interpreting gendered pronouns.
     """)
 
-with how_it_works:
-    st.video("https://youtu.be/99D4eS2F-p4")
+with instructions:
+    for mt in model_type_list:
+        instruction = st.expander(f"{mt} API Key Instruction")
+        instruction.info(dedent("""
+            PLACEHOLDER
+        """))
 
 async def generate_response(placeholder, topic):
     model = llm_cls(model_name=model_name, api_key=api_key)
@@ -157,4 +176,12 @@ async def main():
     await asyncio.gather(*tasks)
 
 if response_button:
-    asyncio.run(main())
+    if not api_key:
+        jump_to_tab(tabs.index(instructions))
+        api_key_error.error(f"Please provide {model_type} API key!")
+    else:
+        jump_to_tab(tabs.index(questionnaire))
+        asyncio.run(main())
+        
+if evaluate_button:
+    jump_to_tab(tabs.index(report))

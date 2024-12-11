@@ -14,8 +14,8 @@ class Gemini(BaseLLM):
     @classmethod
     def get_model_names(cls) -> list[str]:
         return [
-            'gemini-1.5-pro',
             'gemini-1.5-flash',
+            'gemini-1.5-pro',
         ]
     
     def __init__(

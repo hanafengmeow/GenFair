@@ -16,8 +16,8 @@ class ChatGPT(BaseLLM):
     @classmethod
     def get_model_names(cls) -> list[str]:
         return [
-            'gpt-4o',
             'gpt-4o-mini',
+            'gpt-4o',
         ]
     
     def __init__(
