@@ -1,18 +1,20 @@
+from typing import Optional
+
 from streamlit_elements import elements, mui, html
 
 
-def metrics_radar_chart(sam: float, gpd: float, scs: float, orr: float, cra: float):
+def metrics_radar_chart(scores: dict, key: Optional[str] = None):
 
-    with elements("nivo_charts"): # type: ignore
+    with elements(key=key): # type: ignore
 
         from streamlit_elements import nivo
         
         DATA = [
-            { "dimension": "SAM", "score": sam, },
-            { "dimension": "GPD", "score": gpd, },
-            { "dimension": "SCS", "score": scs, },
-            { "dimension": "ORR", "score": orr, },
-            { "dimension": "CRA", "score": cra, },
+            { "dimension": "SAM", "score": scores.get("SAM", 0), },
+            { "dimension": "GPD", "score": scores.get("GPD", 0), },
+            { "dimension": "SCS", "score": scores.get("SCS", 0), },
+            { "dimension": "ORR", "score": scores.get("ORR", 0), },
+            { "dimension": "CRA", "score": scores.get("CRA", 0), },
         ]
 
         with mui.Box(sx={"height": 500}):

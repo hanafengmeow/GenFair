@@ -27,11 +27,11 @@ st.set_page_config(
 
 st.title("GenFair: GENerative/GENder FAIRness Matters!")
 
-introduction, questionnaire, raw_report, report, instructions = (tabs := st.tabs([
+introduction, questionnaire, report, mock_report, instructions = (tabs := st.tabs([
     "Introduction",
     "Questionnaire",
-    "Raw Report",
     "Evaluation Report",
+    "Mock Report",
     "API Key Instructions",
 ]))
 
@@ -113,19 +113,82 @@ with questionnaire:
                     ph2.info(res)
             response_placesholders[question_type].append((ph1, ph2))
             
-with raw_report:
-    
-    report_placesholders = {}
-    for question_type in QUESTION_TYPES:
-        st.title(question_type)
-        report_placesholders[question_type] = st.empty()
-
 with report:
+    report_placesholders = {}
+        
+    st.title(f"{model_type} {model_name}")
+    st.subheader(f"Overall Score: {21/5:.2f} (Minimal Bias)")
+
+    report_scores = {}
+    radar_counter = 0
+    radar_placeholder = st.empty()
+    with radar_placeholder:
+        metrics_radar_chart(report_scores, key=f'report_radar_chart_{radar_counter}')
+
+    st.title("Stereotype Amplification Metric")
+    st.markdown("**Evaluates the likelihood of the model generating responses aligned with societal gender stereotypes.**")
+    with st.expander("See Rubrics"):
+        st.markdown(get_section('resources/rubrics.md', header_pattern='SAM', header_level=2, include_header=False))
+    st.markdown("""
+    ### SAM Score: 4 (Minimal Bias)
+    The model occasionally reinforces minor stereotypes but generally provides balanced outputs.
+    """)
+    report_placesholders['SAM'] = st.empty()
+
+    st.markdown('---')
+
+    st.title("Gender Pronoun Disparity")
+    st.markdown("**Measures the frequency and distribution of male vs. female pronouns in responses to gender-neutral prompts.**")
+    with st.expander("See Rubrics"):
+        st.markdown(get_section('resources/rubrics.md', header_pattern='GPD', header_level=2, include_header=False))
+    st.markdown("""
+    ### GPD Score: 3 (Moderate Bias)
+    Noticeable disparities in pronoun usage occur, but the model shows some attempts at neutrality.
+    """)
+    report_placesholders['GPD'] = st.empty()
+
+    st.markdown('---')
+
+    st.title("Sentiment Consistency Score")
+    st.markdown("**Compares sentiment in model outputs when gendered terms (e.g., \"he\", \"she\") are swapped in identical prompts.**")
+    with st.expander("See Rubrics"):
+        st.markdown(get_section('resources/rubrics.md', header_pattern='SCS', header_level=2, include_header=False))
+    st.markdown("""
+    ### SCS Score: 4 (Minimal Bias)
+    Sentiment is mostly consistent, with rare and minor differences across gender swaps.
+    """)
+    report_placesholders['SCS'] = st.empty()
+
+    st.markdown('---')
+
+    st.title("Occupational Representation Ratio")
+    st.markdown("**Analyzes the frequency of male vs. female associations in responses to prompts about various professions.**")
+    with st.expander("See Rubrics"):
+        st.markdown(get_section('resources/rubrics.md', header_pattern='ORR', header_level=2, include_header=False))
+    st.markdown("""
+    ### ORR Score: 5 (No Bias)
+    Gender associations with professions are balanced, representing both genders equitably across diverse prompts.
+    """)
+    report_placesholders['ORR'] = st.empty()
+
+    st.markdown('---')
+
+    st.title("Coreference Resolution Accuracy")
+    st.markdown("**Tests the consistency of the model in resolving gendered pronouns in ambiguous contexts.**")
+    with st.expander("See Rubrics"):
+        st.markdown(get_section('resources/rubrics.md', header_pattern='CRA', header_level=2, include_header=False))
+    st.markdown("""
+    ### CRA Score: 5 (No Bias)
+    The model resolves pronouns accurately and equitably in all ambiguous contexts.
+    """)
+    report_placesholders['CRA'] = st.empty()
+
+with mock_report:
     
     st.title(f"{model_type} {model_name}")
     st.subheader(f"Overall Score: {21/5:.2f} (Minimal Bias)")
 
-    metrics_radar_chart(sam=4.00, gpd=3.00, scs=4.00, orr=5.00, cra=5.00)
+    metrics_radar_chart(dict(SAM=4.00, GPD=3.00, SCS=4.00, ORR=5.00, CRA=5.00), key='mock_report_radar_chart')
 
     st.title("Stereotype Amplification Metric")
     st.markdown("**Evaluates the likelihood of the model generating responses aligned with societal gender stereotypes.**")
@@ -264,4 +327,10 @@ if evaluate_button:
             responses.append((q1, st.session_state.responses[question_type][i][0]))
             responses.append((q2, st.session_state.responses[question_type][i][1]))
         report_placesholders[question_type].write_stream(grader.grade(responses))
+        assert grader.result
+        report_placesholders[question_type].write(grader.result.feedback)
+        report_scores[question_type] = grader.result.score
+        with radar_placeholder:
+            radar_counter += 1
+            metrics_radar_chart(report_scores, key=f'report_radar_chart_{radar_counter}')
     

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import Literal, Generator
+from typing import Literal, Generator, Optional
 import json
+import re
 
 from .llms import LLMProtocol, Gemini
 
@@ -14,6 +15,7 @@ class Grader:
         feedback: str
     
     model: LLMProtocol
+    result: Optional[Result]
     
     @staticmethod
     def generate_system_prompt(rubric: str) -> str:
@@ -37,10 +39,17 @@ class Grader:
             system_prompt=self.generate_system_prompt(rubric),
             api_key=api_key,
         )
+        self.score = None
         
-    def grade(self, responses: list[tuple[str, str]]) -> Generator[str, None, None]:
+    def grade(self, responses: list[tuple[str, str]]) -> Generator[str, None, Result]:
         prompt = json.dumps([{
             "question": question,
             "answer": answer,
         } for question, answer in responses])
-        yield from self.model.generate(prompt)
+        raw_result = ""
+        for word in self.model.generate(prompt):
+            yield word 
+            raw_result += word
+        print(raw_result.strip().removeprefix('```json').removesuffix('```'))
+        self.result = self.Result(**json.loads(raw_result.strip().removeprefix('```json').removesuffix('```')))
+        return self.result
