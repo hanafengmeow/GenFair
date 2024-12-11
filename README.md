@@ -1,4 +1,4 @@
 # GenFair: Gender Fairness Matters!
 
-## Website: <https://genfair.streamlit.app/>
+## Explore our interactive APP: <https://genfair.streamlit.app/>
 
