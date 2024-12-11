@@ -5,7 +5,7 @@ from collections import defaultdict
 
 import streamlit as st
 
-from genfair import QuestionLoader
+from genfair import QuestionLoader, Grader
 from genfair.llms import *
 from genfair.md_helper import get_section
 from genfair.st_elements import metrics_radar_chart
@@ -27,9 +27,10 @@ st.set_page_config(
 
 st.title("GenFair: GENerative/GENder FAIRness Matters!")
 
-introduction, questionnaire, report, instructions = (tabs := st.tabs([
+introduction, questionnaire, raw_report, report, instructions = (tabs := st.tabs([
     "Introduction",
     "Questionnaire",
+    "Raw Report",
     "Evaluation Report",
     "API Key Instructions",
 ]))
@@ -69,14 +70,15 @@ with st.sidebar:
         st.session_state.responses.clear()
         
     questionnaire_button = st.button(
-        'Generate Questionnaire',
+        'Generate Questionnaire', # if not any(st.session_state.questions.values()) else 'Regenerate Questionnaire',
+        key='questionnaire_button',
         icon='🧐',
         use_container_width=True,
         on_click=questionnaire_button_callback,
     )
     
     response_button = st.button(
-        'Begin Interview',
+        'Begin Interview', # if not any(st.session_state.responses.values()) else 'Interview Again',
         disabled=not any(st.session_state.questions.values()),
         icon='💬',
         use_container_width=True,
@@ -110,6 +112,13 @@ with questionnaire:
                 if res := responses[i][1]:
                     ph2.info(res)
             response_placesholders[question_type].append((ph1, ph2))
+            
+with raw_report:
+    
+    report_placesholders = {}
+    for question_type in QUESTION_TYPES:
+        st.title(question_type)
+        report_placesholders[question_type] = st.empty()
 
 with report:
     
@@ -243,5 +252,16 @@ if response_button:
             
 if evaluate_button:
     jump_to_tab(tabs.index(report))
-    
+    for question_type in QUESTION_TYPES:
+        rubric = get_section('resources/rubrics.md', header_pattern=question_type, header_level=2, include_header=False)
+        assert rubric
+        grader = Grader(
+            rubric=''.join(rubric),
+            api_key=grader_api_key,
+        )
+        responses = []
+        for i, (q1, q2) in enumerate(st.session_state.questions[question_type]):
+            responses.append((q1, st.session_state.responses[question_type][i][0]))
+            responses.append((q2, st.session_state.responses[question_type][i][1]))
+        report_placesholders[question_type].write_stream(grader.grade(responses))
     
