@@ -1,45 +1,43 @@
-import streamlit as st
-import asyncio
 from typing import get_args
-from collections import defaultdict
+import asyncio
+
+import streamlit as st
 
 from genfair import QuestionLoader
 from genfair.llms import *
 from genfair.md_helper import get_section
 from genfair.streamlit_helper import metrics_radar_chart
 
-QUESTION_TYPES = get_args(QuestionLoader.QuestionType.__value__)
 
-
-st.set_page_config(
-    page_title="GenFair!",
-    layout="wide",
+model_type = st.sidebar.selectbox(
+    'Please select a model type:',
+    (
+        'ChatGPT',
+        'Gemini',
+        'HuggingFace',
+    )
 )
 
-st.title("GenFair: Gender Fairness Matters!")
-with st.sidebar:
-    model_type = st.selectbox(
-        'Please select a model type:',
-        list(LLMMeta.registry)
-    )
-    llm_cls = LLMMeta.registry[model_type]
-    model_name = st.selectbox(
-        'Please select a model name to evaluate:',
-        llm_cls.get_model_names()
-    )
-    api_key = st.text_input(
-        'Please provide api key:',
-    )
-    n_questions = st.slider(
-        label="Number of questions per dimension:",
-        min_value=1,
-        max_value=20,
-        value=2,
-        step=1
-    )
-    questionnaire_button = st.button('Generate Questionnaire')
-    response_button = st.button('Generate Response')
-    evaluate_button = st.button('Evaluate!')
+llm_cls = LLMMeta.registry[model_type]
+
+model_name = st.sidebar.selectbox(
+    'Please select a model name to evaluate:',
+    llm_cls.get_model_names()
+)
+
+api_key = st.sidebar.text_input('Please provide api key:')
+
+n_questions = st.sidebar.slider(
+    label="Number of questions per dimension:",
+    min_value=1,
+    max_value=20,
+    value=5,
+    step=1
+)
+
+questionnaire_button = st.sidebar.button('Generate Questionnaire')
+response_button = st.sidebar.button('Generate Response')
+evaluate_button = st.sidebar.button('Evaluate!')
 
 questionnaire, response, report = st.tabs(["Questionnaire", "LLM Response", "Evaluation Report"])
 
@@ -49,19 +47,19 @@ with questionnaire:
 
     questions = {
         question_type: loader.load_question_pairs(question_type, n=n_questions)
-        for question_type in QUESTION_TYPES
+        for question_type in get_args(QuestionLoader.QuestionType.__value__)
     }
-    for question_type in QUESTION_TYPES:
-        st.write(questions[question_type])
+
+    st.write(questions['SAM'])
+    st.write(questions['GPD'])
+    st.write(questions['SCS'])
+    st.write(questions['ORR'])
+    st.write(questions['CRA'])
 
 with response:
-    response_placesholders = defaultdict(list)
-    for question_type in QUESTION_TYPES:
-        st.title(question_type)
-        for _ in range(n_questions):
-            col1, col2 = st.columns(2)
-            response_placesholders[question_type].append((col1.empty(), col2.empty()))
-
+    box1 = st.empty()
+    box2 = st.empty()
+    
 with report:
     
     st.title(f"{model_type} {model_name}")
@@ -133,25 +131,19 @@ with report:
     - The approach would be consistent across similar ambiguous contexts, showing no bias in interpreting gendered pronouns.
     """)
 
-async def generate_response(placeholder, topic):
+async def generate_response(placeholder, prompt):
     model = llm_cls(model_name=model_name, api_key=api_key)
-    
-    with placeholder.expander(topic):
-        inner = st.empty()
-        
-    streamed_text = ""
-    async for word in model.generate_async(topic):
-        streamed_text = streamed_text + word
-        inner.info(streamed_text)
+    text = ""
+    async for word in model.generate_async(prompt):
+        text += word
+        placeholder.write(text)
 
 async def main():
-    tasks = []
-    for question_type in QUESTION_TYPES:
-        for i, (q1, q2) in enumerate(questions[question_type]):
-            tasks.append(generate_response(response_placesholders[question_type][i][0], topic=q1))
-            tasks.append(generate_response(response_placesholders[question_type][i][1], topic=q2))
+    asyncio.gather(
+        generate_response(box1, questions['SAM'][0][0]),
+        generate_response(box2, questions['SAM'][0][1])
+    )
         
-    await asyncio.gather(*tasks)
-
-if response_button:
-    asyncio.run(main())
+if __name__ == '__main__':
+    if response_button:
+        asyncio.run(main())
