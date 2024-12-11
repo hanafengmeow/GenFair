@@ -41,26 +41,27 @@ with st.sidebar:
     response_button = st.button('Generate Response')
     evaluate_button = st.button('Evaluate!')
 
-questionnaire, response, report = st.tabs(["Questionnaire", "LLM Response", "Evaluation Report"])
+if 'questions' not in st.session_state:
+    st.session_state.questions = defaultdict(list)
+if questionnaire_button:
+    loader = QuestionLoader()
+    for question_type in QUESTION_TYPES:
+        st.session_state.questions[question_type] = loader.load_question_pairs(question_type, n=n_questions)
+            
+questionnaire, report = st.tabs(["Questionnaire", "Evaluation Report"])
 
 with questionnaire:
     
-    loader = QuestionLoader()
-
-    questions = {
-        question_type: loader.load_question_pairs(question_type, n=n_questions)
-        for question_type in QUESTION_TYPES
-    }
-    for question_type in QUESTION_TYPES:
-        st.write(questions[question_type])
-
-with response:
     response_placesholders = defaultdict(list)
     for question_type in QUESTION_TYPES:
         st.title(question_type)
-        for _ in range(n_questions):
+        for i, (q1, q2) in enumerate(st.session_state.questions[question_type]):
             col1, col2 = st.columns(2)
-            response_placesholders[question_type].append((col1.empty(), col2.empty()))
+            with col1.expander(q1):
+                ph1 = st.empty()
+            with col2.expander(q2):
+                ph2 = st.empty()
+            response_placesholders[question_type].append((ph1, ph2))
 
 with report:
     
@@ -135,19 +136,15 @@ with report:
 
 async def generate_response(placeholder, topic):
     model = llm_cls(model_name=model_name, api_key=api_key)
-    
-    with placeholder.expander(topic):
-        inner = st.empty()
-        
     streamed_text = ""
     async for word in model.generate_async(topic):
         streamed_text = streamed_text + word
-        inner.info(streamed_text)
+        placeholder.info(streamed_text)
 
 async def main():
     tasks = []
     for question_type in QUESTION_TYPES:
-        for i, (q1, q2) in enumerate(questions[question_type]):
+        for i, (q1, q2) in enumerate(st.session_state.questions[question_type]):
             tasks.append(generate_response(response_placesholders[question_type][i][0], topic=q1))
             tasks.append(generate_response(response_placesholders[question_type][i][1], topic=q2))
         
